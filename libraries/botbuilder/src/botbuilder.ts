@@ -30,6 +30,8 @@ export * from './storageMiddleware';
 export * from './templateManager';
 export * from './dictionaryRenderer';
 export * from './testAdapter';
+export * from './recognizerResult';
+export * from './recognizer';
 
 import { Bot } from './bot';
 import { Activity, ConversationReference, ConversationResourceResponse } from './activity';
