@@ -66,7 +66,7 @@ class LuisRecognizer extends botbuilder_1.Recognizer {
         });
     }
     getEntityValue(entity) {
-        if (entity.type === "builtin.datetimeV2.date") {
+        if (entity.type.startsWith("builtin.datetimeV2.")) {
             return entity.resolution && entity.resolution.values && entity.resolution.values.length ?
                 entity.resolution.values[0].timex :
                 entity.resolution;

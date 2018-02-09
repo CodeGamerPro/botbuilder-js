@@ -76,7 +76,7 @@ export class LuisRecognizer extends Recognizer {
     }
 
     private getEntityValue(entity: Entity) : any {
-        if(entity.type === "builtin.datetimeV2.date"){
+        if(entity.type.startsWith("builtin.datetimeV2.")){
             return entity.resolution && entity.resolution.values && entity.resolution.values.length ? 
                                 entity.resolution.values[0].timex : 
                                 entity.resolution;
