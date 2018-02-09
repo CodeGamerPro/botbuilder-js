@@ -56,16 +56,16 @@ class LuisRecognizer extends botbuilder_1.Recognizer {
             // we'll address composite entities separately
             if (compositeEntityTypes.indexOf(entity.type) > -1)
                 return;
-            this.addProperty(recognizerResult.entities, entity.type, $this.computeEntityValue(entity));
+            this.addProperty(recognizerResult.entities, entity.type, $this.getEntityValue(entity));
             if (verbose) {
-                this.addProperty(recognizerResult.$instance.entities, entity.type, $this.computeEntityMetadata(entity));
+                this.addProperty(recognizerResult.$instance.entities, entity.type, $this.getEntityMetadata(entity));
             }
         });
         compositeEntities.forEach(compositeEntity => {
             $this.populateCompositeEntity(compositeEntity, entities, recognizerResult, verbose);
         });
     }
-    computeEntityValue(entity) {
+    getEntityValue(entity) {
         if (entity.type === "builtin.datetimeV2.date") {
             return entity.resolution && entity.resolution.values && entity.resolution.values.length ?
                 entity.resolution.values[0].timex :
@@ -80,7 +80,7 @@ class LuisRecognizer extends botbuilder_1.Recognizer {
             return entity.entity;
         }
     }
-    computeEntityMetadata(entity) {
+    getEntityMetadata(entity) {
         let metadata = {
             startIndex: entity.startIndex,
             endIndex: entity.endIndex,
@@ -119,7 +119,7 @@ class LuisRecognizer extends botbuilder_1.Recognizer {
         if (!compositeEntityMetadata)
             return;
         if (verbose)
-            childrenEntitiesMetadata = $this.computeEntityMetadata(compositeEntityMetadata);
+            childrenEntitiesMetadata = $this.getEntityMetadata(compositeEntityMetadata);
         // This is now implemented as O(n*k) search and can be reduced to O(n + k) using a map as an optimization if n or k grow
         compositeEntity.children.forEach(childEntity => {
             entities.forEach(entity => {
@@ -127,9 +127,9 @@ class LuisRecognizer extends botbuilder_1.Recognizer {
                     compositeEntityMetadata &&
                     entity.startIndex && compositeEntityMetadata.startIndex && entity.startIndex >= compositeEntityMetadata.startIndex &&
                     entity.endIndex && compositeEntityMetadata.endIndex && entity.endIndex <= compositeEntityMetadata.endIndex) {
-                    $this.addProperty(childrenEntites, entity.type, $this.computeEntityValue(entity));
+                    $this.addProperty(childrenEntites, entity.type, $this.getEntityValue(entity));
                     if (verbose)
-                        $this.addProperty(childrenEntitiesMetadata, entity.type, $this.computeEntityMetadata(entity));
+                        $this.addProperty(childrenEntitiesMetadata, entity.type, $this.getEntityMetadata(entity));
                 }
             });
         });

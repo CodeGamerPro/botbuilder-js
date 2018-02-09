@@ -64,9 +64,9 @@ export class LuisRecognizer extends Recognizer {
             if(compositeEntityTypes.indexOf(entity.type) > -1)
                 return;
 
-            this.addProperty(recognizerResult.entities, entity.type, $this.computeEntityValue(entity));
+            this.addProperty(recognizerResult.entities, entity.type, $this.getEntityValue(entity));
             if(verbose){
-                this.addProperty(recognizerResult.$instance.entities, entity.type, $this.computeEntityMetadata(entity));
+                this.addProperty(recognizerResult.$instance.entities, entity.type, $this.getEntityMetadata(entity));
             }
         });
 
@@ -75,7 +75,7 @@ export class LuisRecognizer extends Recognizer {
         });
     }
 
-    private computeEntityValue(entity: Entity) : any {
+    private getEntityValue(entity: Entity) : any {
         if(entity.type === "builtin.datetimeV2.date"){
             return entity.resolution && entity.resolution.values && entity.resolution.values.length ? 
                                 entity.resolution.values[0].timex : 
@@ -92,7 +92,7 @@ export class LuisRecognizer extends Recognizer {
         }
     }
 
-    private computeEntityMetadata(entity: Entity) : any {
+    private getEntityMetadata(entity: Entity) : any {
         let metadata : any = {
             startIndex: entity.startIndex,
             endIndex: entity.endIndex,
@@ -138,7 +138,7 @@ export class LuisRecognizer extends Recognizer {
             return;
 
         if(verbose)
-            childrenEntitiesMetadata = $this.computeEntityMetadata(compositeEntityMetadata);
+            childrenEntitiesMetadata = $this.getEntityMetadata(compositeEntityMetadata);
 
         // This is now implemented as O(n*k) search and can be reduced to O(n + k) using a map as an optimization if n or k grow
         compositeEntity.children.forEach(childEntity => {
@@ -147,10 +147,10 @@ export class LuisRecognizer extends Recognizer {
                     compositeEntityMetadata && 
                     entity.startIndex && compositeEntityMetadata.startIndex && entity.startIndex >= compositeEntityMetadata.startIndex && 
                     entity.endIndex && compositeEntityMetadata.endIndex && entity.endIndex <= compositeEntityMetadata.endIndex){
-                    $this.addProperty(childrenEntites, entity.type, $this.computeEntityValue(entity));
+                    $this.addProperty(childrenEntites, entity.type, $this.getEntityValue(entity));
 
                     if(verbose)
-                        $this.addProperty(childrenEntitiesMetadata, entity.type, $this.computeEntityMetadata(entity));
+                        $this.addProperty(childrenEntitiesMetadata, entity.type, $this.getEntityMetadata(entity));
                 }
             });
         });
