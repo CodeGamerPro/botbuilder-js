@@ -4,6 +4,7 @@ const builder = require('botbuilder');
 
 const luisAppId = process.env.LUISAPPID;
 const subscriptionKey = process.env.LUISAPPKEY;
+const LuisBaseUri = "https://westus.api.cognitive.microsoft.com/luis";
 
 describe('LuisRecognizer', function () {
     this.timeout(10000);
@@ -19,6 +20,16 @@ describe('LuisRecognizer', function () {
         return;
     }
 
+    it('should return an intent and a simple entity', function(done){
+        var recognizer = new ai.LuisRecognizer(luisAppId, subscriptionKey, LuisBaseUri);
+        var context = { request: { text: 'My name is Emad' } };
+        recognizer.recognize(context).then(res => {
+                console.log(res);
+            });
+        done();
+    });
+
+    /*
     it('should return top intent and entities', function (done) {
 
         var recognizer = new ai.LuisRecognizer(luisAppId, subscriptionKey);
@@ -57,6 +68,6 @@ describe('LuisRecognizer', function () {
         testAdapter.send('I want ham and cheese sandwich!')
             .assertReply('sandwichorder', 'should have sandwichorder as top intent!')
             .then(() => done());
-    });
+    });*/
 
 })

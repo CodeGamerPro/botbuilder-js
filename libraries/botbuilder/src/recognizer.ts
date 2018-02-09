@@ -18,8 +18,8 @@ import { Intent } from './intentRecognizer';
  */
 export class Recognizer implements Middleware {
     private enabledChain: ((context: BotContext) => Promiseable<boolean>)[] = [];
-    private recognizeChain: ((context: BotContext) => Promiseable<RecognizerResult>)[] = [];
-    private filterChain: ((context: BotContext, intents: RecognizerResult) => Promise<RecognizerResult|void>|RecognizerResult|void)[] = [];
+    private recognizeChain: ((context: BotContext) => Promiseable<RecognizerResult[]>)[] = [];
+    private filterChain: ((context: BotContext, intents: RecognizerResult[]) => Promise<RecognizerResult|void>|RecognizerResult|void)[] = [];
 
     public receiveActivity(context: BotContext, next: () => Promise<void>): Promise<void> {
         return this.recognize(context)
@@ -37,8 +37,8 @@ export class Recognizer implements Middleware {
      *
      * @param context Context for the current turn of the conversation.
      */
-    public recognize(context: BotContext): Promise<RecognizerResult> {
-        return new Promise<RecognizerResult>((resolve, reject) => {
+    public recognize(context: BotContext): Promise<RecognizerResult[]> {
+        return new Promise<RecognizerResult[]>((resolve, reject) => {
             this.runEnabled(context)
                 .then((enabled) => {
                     if (enabled) {
@@ -47,7 +47,7 @@ export class Recognizer implements Middleware {
                             .then((intents) => resolve(intents))
                             .catch((err) => reject(err));
                     } else {
-                        resolve({} as RecognizerResult);
+                        resolve([]);
                     }
                 })
                 .catch((err) => reject(err));
@@ -74,7 +74,7 @@ export class Recognizer implements Middleware {
      *
      * @param handler Function that will be called to recognize a users intent.
      */
-    public onRecognize(handler: (context: BotContext) => Promiseable<RecognizerResult>): this {
+    public onRecognize(handler: (context: BotContext) => Promiseable<RecognizerResult[]>): this {
         this.recognizeChain.unshift(handler);
         return this;
     }
@@ -90,7 +90,7 @@ export class Recognizer implements Middleware {
      * that will become the new set of output intents passed on to the next filter. The final filter in
      * the chain will reduce the output set of intents to a single top scoring intent. 
      */
-    public onFilter(handler: (context: BotContext, intents: RecognizerResult) => Promiseable<RecognizerResult|void>): this {
+    public onFilter(handler: (context: BotContext, intents: RecognizerResult[]) => Promiseable<RecognizerResult|void>): this {
         this.filterChain.push(handler);
         return this;
     }
@@ -119,16 +119,16 @@ export class Recognizer implements Middleware {
         });
     }
 
-    private runRecognize(context: BotContext): Promise<RecognizerResult> {
-        return new Promise<RecognizerResult>((resolve, reject) => {
-            let recognizerResult : RecognizerResult = {} as RecognizerResult;
+    private runRecognize(context: BotContext): Promise<RecognizerResult[]> {
+        return new Promise<RecognizerResult[]>((resolve, reject) => {
+            let recognizerResults : RecognizerResult[] = [];
             const chain = this.recognizeChain.slice();
             function next(i: number) {
                 if (i < chain.length) {
                     try {
                         Promise.resolve(chain[i](context)).then((result) => {
                             if (Array.isArray(result)) {
-                                // TODO (emadelw): Merge Results
+                                recognizerResults = recognizerResults.concat(result);
                             }
                             next(i + 1);
                         }).catch((err) => reject(err));
@@ -136,23 +136,23 @@ export class Recognizer implements Middleware {
                         reject(err);
                     }
                 } else {
-                    resolve(recognizerResult);
+                    resolve(recognizerResults);
                 }
             }
             next(0);
         });
     }
 
-    private runFilter(context: BotContext, results: RecognizerResult): Promise<RecognizerResult> {
-        return new Promise<RecognizerResult>((resolve, reject) => {
-            let filtered = {} as RecognizerResult;
+    private runFilter(context: BotContext, results: RecognizerResult[]): Promise<RecognizerResult[]> {
+        return new Promise<RecognizerResult[]>((resolve, reject) => {
+            let filtered : RecognizerResult[] = results;
             const chain = this.filterChain.slice();
             function next(i: number) {
                 if (i < chain.length) {
                     try {
                         Promise.resolve(chain[i](context, filtered)).then((result) => {
                             if (Array.isArray(result)) {
-                                // TODO (emadelw): Filter Results
+                                filtered = result;
                             }
                             next(i + 1);
                         }).catch((err) => reject(err));
@@ -172,15 +172,16 @@ export class Recognizer implements Middleware {
      *
      * @param intents Array of intents to filter.  
      */
-    static findTopIntent(recognizerResult: RecognizerResult): Promise<Intent|undefined> {
+    static findTopIntent(recognizerResults: RecognizerResult[]): Promise<Intent|undefined> {
         return new Promise<Intent|undefined>((resolve, reject) => {
             let top: Intent|undefined = undefined;
-            let intents = recognizerResult.intents || {};
+
+            let intents : any = [].concat.apply([],recognizerResults.map(recognizerResult => recognizerResult.intents));
             Object.keys(intents).forEach(intent => {
-                if (!top || recognizerResult.intents[intent] > top.score) {
+                if (!top || recognizerResults[0].intents[intent] > top.score) {
                     top = {
                             name: intent,
-                            score: recognizerResult.intents[intent]
+                            score: recognizerResults[0].intents[intent]
                     } as Intent;
                 }
             });

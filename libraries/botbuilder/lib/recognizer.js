@@ -38,7 +38,7 @@ class Recognizer {
                         .catch((err) => reject(err));
                 }
                 else {
-                    resolve({});
+                    resolve([]);
                 }
             })
                 .catch((err) => reject(err));
@@ -110,14 +110,14 @@ class Recognizer {
     }
     runRecognize(context) {
         return new Promise((resolve, reject) => {
-            let recognizerResult = {};
+            let recognizerResults = [];
             const chain = this.recognizeChain.slice();
             function next(i) {
                 if (i < chain.length) {
                     try {
                         Promise.resolve(chain[i](context)).then((result) => {
                             if (Array.isArray(result)) {
-                                // TODO (emadelw): Merge Results
+                                recognizerResults = recognizerResults.concat(result);
                             }
                             next(i + 1);
                         }).catch((err) => reject(err));
@@ -127,7 +127,7 @@ class Recognizer {
                     }
                 }
                 else {
-                    resolve(recognizerResult);
+                    resolve(recognizerResults);
                 }
             }
             next(0);
@@ -135,14 +135,14 @@ class Recognizer {
     }
     runFilter(context, results) {
         return new Promise((resolve, reject) => {
-            let filtered = {};
+            let filtered = results;
             const chain = this.filterChain.slice();
             function next(i) {
                 if (i < chain.length) {
                     try {
                         Promise.resolve(chain[i](context, filtered)).then((result) => {
                             if (Array.isArray(result)) {
-                                // TODO (emadelw): Filter Results
+                                filtered = result;
                             }
                             next(i + 1);
                         }).catch((err) => reject(err));
@@ -163,15 +163,15 @@ class Recognizer {
      *
      * @param intents Array of intents to filter.
      */
-    static findTopIntent(recognizerResult) {
+    static findTopIntent(recognizerResults) {
         return new Promise((resolve, reject) => {
             let top = undefined;
-            let intents = recognizerResult.intents || {};
+            let intents = [].concat.apply([], recognizerResults.map(recognizerResult => recognizerResult.intents));
             Object.keys(intents).forEach(intent => {
-                if (!top || recognizerResult.intents[intent] > top.score) {
+                if (!top || recognizerResults[0].intents[intent] > top.score) {
                     top = {
                         name: intent,
-                        score: recognizerResult.intents[intent]
+                        score: recognizerResults[0].intents[intent]
                     };
                 }
             });

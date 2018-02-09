@@ -18,12 +18,15 @@ export class LuisRecognizer extends Recognizer {
         this.luisClient = new LuisClient(baseUri);
         this.onRecognize((context) => {
             const utterance = (context.request.text || '').trim();
-            return $this.recognizeAndMap(utterance, appId, subscriptionKey, true);
+            return $this.recognizeAndMap(utterance, appId, subscriptionKey, true).then(res =>{
+                let recognizerResults : RecognizerResult[]  = [res]
+                return recognizerResults;
+            });
         });
     }
 
     public static recognize(utterance: string, appId: string, subscriptionKey: string, baseUri?: string): Promise<RecognizerResult> {
-        let recognizer = new LuisRecognizer(appId, subscriptionKey);
+        let recognizer = new LuisRecognizer(appId, subscriptionKey, baseUri);
         return recognizer.recognizeAndMap(utterance, appId, subscriptionKey, true);
     }
 
@@ -57,10 +60,11 @@ export class LuisRecognizer extends Recognizer {
 
         let compositeEntityTypes : string[] = compositeEntities.map(compositeEntity => compositeEntity.parentType);
         entities.forEach(entity => {
+            // we'll address composite entities separately
             if(compositeEntityTypes.indexOf(entity.type) > -1)
                 return;
 
-            if(entity.type.startsWith("builtin")){
+            if(entity.type.startsWith("builtin.")){
                 $this.populatePrebuiltEntity(entity, recognizerResult, verbose);
             }
             else{
@@ -73,14 +77,30 @@ export class LuisRecognizer extends Recognizer {
         });
     }
 
-    private populateSimpleEntity(entity: Entity, recognizerResult: RecognizerResult, verbose: boolean) : void {
-        this.addProperty(recognizerResult.entities, entity.type, entity.entity);
-        if(verbose){
-            this.addProperty(recognizerResult.$instance.entities, entity.type, {
+    private computeSimpleEntity(entity: Entity) : any {
+        return {
+            key: entity.type,
+            value: entity.entity
+        };
+    }
+
+    private computeSimpleEntityMetadata(entity: Entity) : any {
+        return {
+            key: entity.type,
+            value: {
                 startIndex: entity.startIndex,
                 endIndex: entity.endIndex,
                 score: entity.score
-            });
+            }
+        };
+    }
+
+    private populateSimpleEntity(entity: Entity, recognizerResult: RecognizerResult, verbose: boolean) : void {
+        let simpleEntity = this.computeSimpleEntity(entity);
+        this.addProperty(recognizerResult.entities, simpleEntity.key, simpleEntity.value);
+        if(verbose){
+            let simpleEntityMetadata = this.computeSimpleEntityMetadata(entity);
+            this.addProperty(recognizerResult.$instance.entities, simpleEntityMetadata.key, simpleEntityMetadata.value);
         }
     }
 
@@ -109,14 +129,40 @@ export class LuisRecognizer extends Recognizer {
     }
 
     private populateCompositeEntity(compositeEntity: CompositeEntity, entities: Entity[], recognizerResult: RecognizerResult, verbose: boolean) : void {
-        var childrenEntites : object = {};
+        let childrenEntites : any = {};
+        let $this = this;
+        
+        // This is now implemented as O(n^2) search and can be reduced to O(2n) using a map as an optimization if n grows
+        let compositeEntityMetadata : Entity | undefined;
+        entities.some(entity => {
+            // For now we are matching by value, which can be ambiguous if the same composite entity shows up with the same text 
+            // multiple times within an utterance, but this is just a stop gap solution till the indices are included in composite entities
+            if(entity.type === compositeEntity.parentType && entity.entity === compositeEntity.value){
+                compositeEntityMetadata = entity;
+                return true;
+            }
+            return false;
+        });
+
+        // This is an error case and should not happen in theory
+        if(!compositeEntityMetadata)
+            return;
 
         // This is now implemented as O(n*k) search and can be reduced to O(n + k) using a map as an optimization if n or k grow
         compositeEntity.children.forEach(childEntity => {
             entities.forEach(entity =>{
-                //if(entity.type === childEntity.type && entity.startIndex > compositeEntity.)
+                if(childEntity.type === entity.type && 
+                    compositeEntityMetadata && 
+                    entity.startIndex && compositeEntityMetadata.startIndex && entity.startIndex >= compositeEntityMetadata.startIndex && 
+                    entity.endIndex && compositeEntityMetadata.endIndex && entity.endIndex <= compositeEntityMetadata.endIndex){
+                    
+                    let simpleEntity = $this.computeSimpleEntity(entity);
+                    $this.addProperty(childrenEntites, simpleEntity.key, simpleEntity.value);
+                }
             });
         });
+
+        this.addProperty(recognizerResult.entities, compositeEntity.parentType, childrenEntites);
     }
 
     /**

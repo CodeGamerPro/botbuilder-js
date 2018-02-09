@@ -24,7 +24,7 @@ export declare class Recognizer implements Middleware {
      *
      * @param context Context for the current turn of the conversation.
      */
-    recognize(context: BotContext): Promise<RecognizerResult>;
+    recognize(context: BotContext): Promise<RecognizerResult[]>;
     /**
      * Adds a handler that lets you conditionally determine if a recognizer should run. Multiple
      * handlers can be registered and they will be called in the reverse order they are added
@@ -41,7 +41,7 @@ export declare class Recognizer implements Middleware {
      *
      * @param handler Function that will be called to recognize a users intent.
      */
-    onRecognize(handler: (context: BotContext) => Promiseable<RecognizerResult>): this;
+    onRecognize(handler: (context: BotContext) => Promiseable<RecognizerResult[]>): this;
     /**
      * Adds a handler that will be called post recognition to filter the output of the recognizer.
      * The filter receives all of the intents that were recognized and can return a subset, or
@@ -53,7 +53,7 @@ export declare class Recognizer implements Middleware {
      * that will become the new set of output intents passed on to the next filter. The final filter in
      * the chain will reduce the output set of intents to a single top scoring intent.
      */
-    onFilter(handler: (context: BotContext, intents: RecognizerResult) => Promiseable<RecognizerResult | void>): this;
+    onFilter(handler: (context: BotContext, intents: RecognizerResult[]) => Promiseable<RecognizerResult | void>): this;
     private runEnabled(context);
     private runRecognize(context);
     private runFilter(context, results);
@@ -62,5 +62,5 @@ export declare class Recognizer implements Middleware {
      *
      * @param intents Array of intents to filter.
      */
-    static findTopIntent(recognizerResult: RecognizerResult): Promise<Intent | undefined>;
+    static findTopIntent(recognizerResults: RecognizerResult[]): Promise<Intent | undefined>;
 }
