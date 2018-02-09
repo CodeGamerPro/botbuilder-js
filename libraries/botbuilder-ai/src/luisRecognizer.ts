@@ -64,35 +64,15 @@ export class LuisRecognizer extends Recognizer {
             if(compositeEntityTypes.indexOf(entity.type) > -1)
                 return;
 
-            let value = $this.computeEntityValue(entity);
-            let metadata: any;
-
-            if(entity.type.startsWith("builtin.")){
-                metadata = $this.computeEntityMetadata(entity);
-                
-            }
-            else{
-                metadata = $this.computeSimpleEntityMetadata(entity);
-            }
-
-            this.addProperty(recognizerResult.entities, entity.type, value);
+            this.addProperty(recognizerResult.entities, entity.type, $this.computeEntityValue(entity));
             if(verbose){
-                this.addProperty(recognizerResult.$instance.entities, entity.type, metadata);
+                this.addProperty(recognizerResult.$instance.entities, entity.type, $this.computeEntityMetadata(entity));
             }
         });
 
         compositeEntities.forEach(compositeEntity => {
             $this.populateCompositeEntity(compositeEntity, entities, recognizerResult, verbose);
         });
-    }
-
-
-    private computeSimpleEntityMetadata(entity: Entity) : any {
-        return {
-            startIndex: entity.startIndex,
-            endIndex: entity.endIndex,
-            score: entity.score
-        };
     }
 
     private computeEntityValue(entity: Entity) : any {
@@ -113,16 +93,32 @@ export class LuisRecognizer extends Recognizer {
     }
 
     private computeEntityMetadata(entity: Entity) : any {
-        return {
+        let metadata : any = {
             startIndex: entity.startIndex,
             endIndex: entity.endIndex,
-            value: entity.resolution ? entity.resolution.value || entity.resolution.values : {},
-            entity: entity.entity
+            entity: entity.entity,
+            score: entity.score
         };
+
+        if(entity.resolution)
+        {
+            if(entity.resolution.value){
+                metadata.value = entity.resolution.value;
+            }
+            else if(entity.resolution.values){
+                if(entity.resolution.values.length > 1)
+                    metadata.values = entity.resolution.values;
+                else
+                    metadata.value = entity.resolution.values[0];
+            }
+        }
+
+        return metadata;
     }
 
     private populateCompositeEntity(compositeEntity: CompositeEntity, entities: Entity[], recognizerResult: RecognizerResult, verbose: boolean) : void {
         let childrenEntites : any = {};
+        let childrenEntitiesMetadata : any = {};
         let $this = this;
         
         // This is now implemented as O(n^2) search and can be reduced to O(2n) using a map as an optimization if n grows
@@ -141,6 +137,9 @@ export class LuisRecognizer extends Recognizer {
         if(!compositeEntityMetadata)
             return;
 
+        if(verbose)
+            childrenEntitiesMetadata = $this.computeEntityMetadata(compositeEntityMetadata);
+
         // This is now implemented as O(n*k) search and can be reduced to O(n + k) using a map as an optimization if n or k grow
         compositeEntity.children.forEach(childEntity => {
             entities.forEach(entity =>{
@@ -149,11 +148,17 @@ export class LuisRecognizer extends Recognizer {
                     entity.startIndex && compositeEntityMetadata.startIndex && entity.startIndex >= compositeEntityMetadata.startIndex && 
                     entity.endIndex && compositeEntityMetadata.endIndex && entity.endIndex <= compositeEntityMetadata.endIndex){
                     $this.addProperty(childrenEntites, entity.type, $this.computeEntityValue(entity));
+
+                    if(verbose)
+                        $this.addProperty(childrenEntitiesMetadata, entity.type, $this.computeEntityMetadata(entity));
                 }
             });
         });
 
         this.addProperty(recognizerResult.entities, compositeEntity.parentType, childrenEntites);
+        if(verbose){
+            $this.addProperty(recognizerResult.$instance.entities, compositeEntity.parentType, childrenEntitiesMetadata);
+        }
     }
 
     /**

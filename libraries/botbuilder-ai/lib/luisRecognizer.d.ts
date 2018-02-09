@@ -15,10 +15,8 @@ export declare class LuisRecognizer extends Recognizer {
     protected recognizeAndMap(utterance: string, appId: string, subscriptionKey: string, verbose: boolean): Promise<RecognizerResult>;
     private populateIntents(intent, recognizerResult);
     private populateEntities(entities, compositeEntities, recognizerResult, verbose);
-    private computeSimpleEntityMetadata(entity);
     private computeEntityValue(entity);
     private computeEntityMetadata(entity);
-    private computeListEntityValue(entity);
     private populateCompositeEntity(compositeEntity, entities, recognizerResult, verbose);
     /**
      * If a property doesn't exist add it as a singleton. If it does convert the property to an
