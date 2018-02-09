@@ -64,11 +64,20 @@ export class LuisRecognizer extends Recognizer {
             if(compositeEntityTypes.indexOf(entity.type) > -1)
                 return;
 
+            let value = $this.computeEntityValue(entity);
+            let metadata: any;
+
             if(entity.type.startsWith("builtin.")){
-                $this.populatePrebuiltEntity(entity, recognizerResult, verbose);
+                metadata = $this.computeEntityMetadata(entity);
+                
             }
             else{
-                $this.populateSimpleEntity(entity, recognizerResult, verbose);
+                metadata = $this.computeSimpleEntityMetadata(entity);
+            }
+
+            this.addProperty(recognizerResult.entities, entity.type, value);
+            if(verbose){
+                this.addProperty(recognizerResult.$instance.entities, entity.type, metadata);
             }
         });
 
@@ -77,55 +86,39 @@ export class LuisRecognizer extends Recognizer {
         });
     }
 
-    private computeSimpleEntity(entity: Entity) : any {
-        return {
-            key: entity.type,
-            value: entity.entity
-        };
-    }
 
     private computeSimpleEntityMetadata(entity: Entity) : any {
         return {
-            key: entity.type,
-            value: {
-                startIndex: entity.startIndex,
-                endIndex: entity.endIndex,
-                score: entity.score
-            }
+            startIndex: entity.startIndex,
+            endIndex: entity.endIndex,
+            score: entity.score
         };
     }
 
-    private populateSimpleEntity(entity: Entity, recognizerResult: RecognizerResult, verbose: boolean) : void {
-        let simpleEntity = this.computeSimpleEntity(entity);
-        this.addProperty(recognizerResult.entities, simpleEntity.key, simpleEntity.value);
-        if(verbose){
-            let simpleEntityMetadata = this.computeSimpleEntityMetadata(entity);
-            this.addProperty(recognizerResult.$instance.entities, simpleEntityMetadata.key, simpleEntityMetadata.value);
+    private computeEntityValue(entity: Entity) : any {
+        if(entity.type === "builtin.datetimeV2.date"){
+            return entity.resolution && entity.resolution.values && entity.resolution.values.length ? 
+                                entity.resolution.values[0].timex : 
+                                entity.resolution;
+           
+        }
+        else if(entity.resolution){
+            return Object.keys(entity.resolution).length > 1 ? entity.resolution : 
+                    entity.resolution.value ? entity.resolution.value : 
+                        entity.resolution.values && entity.resolution.values.length == 1 ? entity.resolution.values[0] : entity.resolution.values;
+        }
+        else{
+            return entity.entity;
         }
     }
 
-
-    private populatePrebuiltEntity(entity: Entity, recognizerResult: RecognizerResult, verbose: boolean) : void {
-        if(entity.type === "builtin.datetimeV2.date"){
-            let value: any = entity.resolution && entity.resolution.values && entity.resolution.values.length ? 
-                                entity.resolution.values[0].timex : 
-                                entity.resolution;
-            this.addProperty(recognizerResult.entities, entity.type, value);
-        }
-        else{
-            let resolution: any = entity.resolution || {};
-            let value: any = Object.keys(resolution).length > 1 ? resolution : resolution.value;
-            this.addProperty(recognizerResult.entities, entity.type, value);
-        }
-
-        if(verbose){
-            this.addProperty(recognizerResult.$instance.entities, entity.type, {
-                startIndex: entity.startIndex,
-                endIndex: entity.endIndex,
-                resolution: entity.resolution,
-                entity: entity.entity
-            });
-        }
+    private computeEntityMetadata(entity: Entity) : any {
+        return {
+            startIndex: entity.startIndex,
+            endIndex: entity.endIndex,
+            value: entity.resolution ? entity.resolution.value || entity.resolution.values : {},
+            entity: entity.entity
+        };
     }
 
     private populateCompositeEntity(compositeEntity: CompositeEntity, entities: Entity[], recognizerResult: RecognizerResult, verbose: boolean) : void {
@@ -155,9 +148,7 @@ export class LuisRecognizer extends Recognizer {
                     compositeEntityMetadata && 
                     entity.startIndex && compositeEntityMetadata.startIndex && entity.startIndex >= compositeEntityMetadata.startIndex && 
                     entity.endIndex && compositeEntityMetadata.endIndex && entity.endIndex <= compositeEntityMetadata.endIndex){
-                    
-                    let simpleEntity = $this.computeSimpleEntity(entity);
-                    $this.addProperty(childrenEntites, simpleEntity.key, simpleEntity.value);
+                    $this.addProperty(childrenEntites, entity.type, $this.computeEntityValue(entity));
                 }
             });
         });
@@ -174,9 +165,9 @@ export class LuisRecognizer extends Recognizer {
      */
     private addProperty(obj: any, key: string, value: any){
         if(key in obj && Array.isArray(obj[key]))
-            obj[key].push(value);
+            obj[key] = obj[key].concat(value);
         else if(key in obj)
-            obj[key] = [obj[key], value];
+            obj[key] = [].concat(obj[key]).concat(value);
         else
             obj[key] = value;
     }
