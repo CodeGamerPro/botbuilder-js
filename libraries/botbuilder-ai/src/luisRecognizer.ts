@@ -103,13 +103,13 @@ export class LuisRecognizer extends Recognizer {
         if(entity.resolution)
         {
             if(entity.resolution.value){
-                metadata.value = entity.resolution.value;
+                metadata.resolution = entity.resolution.value;
             }
             else if(entity.resolution.values){
                 if(entity.resolution.values.length > 1)
-                    metadata.values = entity.resolution.values;
+                    metadata.resolution = entity.resolution.values;
                 else
-                    metadata.value = entity.resolution.values[0];
+                    metadata.resolution = entity.resolution.values[0];
             }
         }
 
